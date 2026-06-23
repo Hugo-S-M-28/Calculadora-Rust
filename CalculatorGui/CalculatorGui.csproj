@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+  </PropertyGroup>
+  
+  <Target Name="BuildRustLibrary" BeforeTargets="BeforeBuild">
+    <Message Importance="high" Text="Building Rust dynamic library..." />
+    <Exec Command="cargo build" Condition="'$(Configuration)' != 'Release'" WorkingDirectory=".." />
+    <Exec Command="cargo build --release" Condition="'$(Configuration)' == 'Release'" WorkingDirectory=".." />
+  </Target>
+
+  <Target Name="CopyRustLibrary" AfterTargets="BuildRustLibrary" BeforeTargets="Build">
+    <Message Importance="high" Text="Copying Rust dynamic library to output..." />
+    <PropertyGroup>
+      <RustDllDir Condition="'$(Configuration)' != 'Release'">..\target\debug</RustDllDir>
+      <RustDllDir Condition="'$(Configuration)' == 'Release'">..\target\release</RustDllDir>
+    </PropertyGroup>
+    <Copy SourceFiles="$(RustDllDir)\calculator_core.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(RustDllDir)\calculator_core.dll" DestinationFolder="$(PublishDir)" Condition="'$(PublishDir)' != ''" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

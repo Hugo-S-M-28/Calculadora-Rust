@@ -1,0 +1,117 @@
+<UserControl x:Class="CalculatorGui.View.GraphingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:CalculatorGui.View"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="700">
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="240"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Left Sidebar: Functions List / Input -->
+        <Border Grid.Column="0" 
+                Background="{DynamicResource SidebarBgBrush}" 
+                BorderBrush="{DynamicResource BorderBrush}" 
+                BorderThickness="0,0,1,0" 
+                Padding="15">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <TextBlock Grid.Row="0" Text="Función f(x)" Foreground="{DynamicResource TextSecBrush}" FontSize="12" Margin="0,0,0,5"/>
+                
+                <!-- Function Input -->
+                <TextBox x:Name="TxtGraphFunction" 
+                         Grid.Row="1" 
+                         Text="{Binding FunctionExpression, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                         Height="40" 
+                         FontSize="16" 
+                         FontFamily="Consolas, Segoe UI"
+                         Background="{DynamicResource ScreenBgBrush}" 
+                         Foreground="{DynamicResource TextMainBrush}" 
+                         BorderBrush="{DynamicResource BorderBrush}" 
+                         BorderThickness="1" 
+                         Padding="8,5" 
+                         TextChanged="TxtGraphFunction_TextChanged"
+                         Margin="0,0,0,15"/>
+
+                <!-- Instructions / Help -->
+                <StackPanel Grid.Row="2" Margin="0,10,0,0">
+                    <TextBlock Text="Ejemplos:" FontWeight="Bold" Foreground="{DynamicResource TextMainBrush}" FontSize="13" Margin="0,0,0,5"/>
+                    <TextBlock Text="• sin(x)&#x0a;• x * cos(x)&#x0a;• x * x - 3&#x0a;• 2 * x + 1&#x0a;• ln(x)&#x0a;• ctan(x)" 
+                               Foreground="{DynamicResource TextSecBrush}" FontSize="12" LineHeight="18"/>
+                    <TextBlock Text="Arrastra en el plano para moverte.&#x0a;Usa + / - para hacer zoom." 
+                               Foreground="{DynamicResource TextSecBrush}" FontSize="11" Margin="0,20,0,0" TextWrapping="Wrap"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Right Panel: Interactive Plotting Canvas -->
+        <Grid Grid.Column="1">
+            <!-- Graph Canvas -->
+            <Canvas x:Name="GraphCanvas" 
+                    Background="{DynamicResource ScreenBgBrush}" 
+                    ClipToBounds="True" 
+                    SizeChanged="GraphCanvas_SizeChanged"
+                    MouseLeftButtonDown="GraphCanvas_MouseLeftButtonDown" 
+                    MouseLeftButtonUp="GraphCanvas_MouseLeftButtonUp" 
+                    MouseMove="GraphCanvas_MouseMove"
+                    MouseWheel="GraphCanvas_MouseWheel"
+                    MouseLeave="GraphCanvas_MouseLeave"
+                    Cursor="SizeAll"/>
+
+            <!-- Interactive coordinate tracking overlay -->
+            <Canvas x:Name="TrackingCanvas" IsHitTestVisible="False" ClipToBounds="True">
+                <!-- Vertical tracker line -->
+                <Line x:Name="TrackerLineY" X1="0" Y1="0" X2="0" Y2="1"
+                      Stroke="{DynamicResource TextSecBrush}" StrokeThickness="1" StrokeDashArray="3,3" Visibility="Collapsed"/>
+                <!-- Horizontal tracker line -->
+                <Line x:Name="TrackerLineX" X1="0" Y1="0" X2="1" Y2="0"
+                      Stroke="{DynamicResource TextSecBrush}" StrokeThickness="1" StrokeDashArray="3,3" Visibility="Collapsed"/>
+                <!-- Coordinates tooltip -->
+                <Border x:Name="TrackerTooltip" Background="{DynamicResource SidebarBgBrush}" BorderBrush="{DynamicResource BorderBrush}" 
+                        BorderThickness="1" CornerRadius="4" Padding="6,4" Visibility="Collapsed">
+                    <TextBlock x:Name="TxtTrackerCoords" Foreground="{DynamicResource TextMainBrush}" FontSize="11" FontFamily="Consolas, Segoe UI"/>
+                </Border>
+            </Canvas>
+
+
+            <!-- Floating Zoom Controls in bottom-right corner -->
+            <StackPanel Orientation="Vertical" 
+                        HorizontalAlignment="Right" 
+                        VerticalAlignment="Bottom" 
+                        Margin="20">
+                <!-- Zoom In Button -->
+                <Button Content="＋" 
+                        Width="40" Height="40" 
+                        Style="{StaticResource CircleButtonBase}" 
+                        Background="{DynamicResource ButtonBgBrush}"
+                        Foreground="{DynamicResource TextMainBrush}"
+                        Click="BtnZoomIn_Click"
+                        Margin="0,0,0,10"/>
+                <!-- Zoom Out Button -->
+                <Button Content="－" 
+                        Width="40" Height="40" 
+                        Style="{StaticResource CircleButtonBase}" 
+                        Background="{DynamicResource ButtonBgBrush}"
+                        Foreground="{DynamicResource TextMainBrush}"
+                        Click="BtnZoomOut_Click"
+                        Margin="0,0,0,10"/>
+                <!-- Reset View Button -->
+                <Button Content="🎯" 
+                        Width="40" Height="40" 
+                        Style="{StaticResource CircleButtonBase}" 
+                        Background="{DynamicResource ButtonBgBrush}"
+                        Foreground="{DynamicResource TextMainBrush}"
+                        Click="BtnZoomReset_Click"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</UserControl>

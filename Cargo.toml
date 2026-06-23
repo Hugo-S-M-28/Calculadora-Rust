@@ -1,0 +1,17 @@
+[package]
+name = "calculator"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "calculator_core"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+num-complex = "0.4"
+num-integer = "0.1"
+statrs = "0.16"
+rand = "0.8"
+nalgebra = "0.32"

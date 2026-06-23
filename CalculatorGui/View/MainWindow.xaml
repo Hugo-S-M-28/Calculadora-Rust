@@ -1,0 +1,178 @@
+<Window x:Class="CalculatorGui.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:CalculatorGui"
+        xmlns:vm="clr-namespace:CalculatorGui.ViewModel"
+        xmlns:view="clr-namespace:CalculatorGui.View"
+        mc:Ignorable="d"
+        Title="Calculadora Rust"
+        MinWidth="750" MinHeight="500"
+        Width="900" Height="640"
+        SizeToContent="Manual"
+        Background="{DynamicResource WindowBgBrush}"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
+        <DataTemplate DataType="{x:Type vm:CalculatorViewModel}">
+            <view:CalculatorView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ConverterViewModel}">
+            <view:ConverterView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:GraphingViewModel}">
+            <view:GraphingView />
+        </DataTemplate>
+    </Window.Resources>
+
+    <!-- Root layout: full-window grid so the menu can float as an overlay
+         without participating in the column flow. -->
+    <Grid x:Name="RootGrid">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition x:Name="HistoryColumn">
+                <ColumnDefinition.Style>
+                    <Style TargetType="ColumnDefinition">
+                        <Setter Property="Width" Value="280"/>
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsHistoryOpen}" Value="False">
+                                <Setter Property="Width" Value="0"/>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </ColumnDefinition.Style>
+            </ColumnDefinition>
+        </Grid.ColumnDefinitions>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ============================== -->
+        <!-- MAIN CONTENT AREA              -->
+        <!-- ============================== -->
+        <Grid Grid.Column="0" Margin="15">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/> <!-- Header row -->
+                <RowDefinition Height="*"/>    <!-- Content row   -->
+            </Grid.RowDefinitions>
+
+            <!-- Header: Grid-based (instead of DockPanel) so the title can ellipsize
+                 gracefully and the action buttons always have a fixed slot. -->
+            <Grid x:Name="AppHeader"
+                  Grid.Row="0"
+                  Margin="0,0,0,10">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>     <!-- Menu button -->
+                    <ColumnDefinition Width="*"/>        <!-- Title (flex) -->
+                    <ColumnDefinition Width="Auto"/>     <!-- Action buttons -->
+                </Grid.ColumnDefinitions>
+
+                <!-- Menu hamburger -->
+                <Button x:Name="BtnMenuToggle"
+                        Grid.Column="0"
+                        Content="☰"
+                        Width="36" Height="36"
+                        Margin="0,0,10,0"
+                        Style="{StaticResource ThemeToggleButtonStyle}"
+                        Click="BtnMenuToggle_Click"
+                        ToolTip="Abrir menú de navegación"/>
+
+                <!-- App title - ellipsizes when window gets narrow -->
+                <TextBlock x:Name="TxtAppTitle"
+                           Grid.Column="1"
+                           Text="{Binding AppTitle}"
+                           FontSize="20"
+                           FontWeight="Bold"
+                           Foreground="{DynamicResource SciButtonTextBrush}"
+                           VerticalAlignment="Center"
+                           HorizontalAlignment="Left"
+                           TextTrimming="CharacterEllipsis"
+                           TextWrapping="NoWrap"/>
+
+                <!-- Action buttons stacked at the right -->
+                <WrapPanel Grid.Column="2" 
+                           Orientation="Horizontal" 
+                           HorizontalAlignment="Right" 
+                           VerticalAlignment="Center">
+                    <!-- History toggle -->
+                    <ToggleButton x:Name="BtnHistoryToggle"
+                                  Width="36" Height="36"
+                                  Margin="0,0,10,0"
+                                  Cursor="Hand"
+                                  IsChecked="{Binding IsHistoryOpen, Mode=TwoWay}"
+                                  Style="{StaticResource ThemeToggleButtonStyle}"
+                                  ToolTip="Mostrar u ocultar el historial">
+                        <TextBlock Text="🕒" FontSize="16"
+                                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </ToggleButton>
+
+                    <!-- Theme toggle -->
+                    <ToggleButton x:Name="BtnThemeToggle"
+                                  Width="36" Height="36"
+                                  Cursor="Hand"
+                                  Click="BtnThemeToggle_Click"
+                                  Style="{StaticResource ThemeToggleButtonStyle}"
+                                  ToolTip="Cambiar tema claro/oscuro">
+                        <TextBlock x:Name="TxtThemeIcon" Text="☾" FontSize="16"
+                                   VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                    </ToggleButton>
+                </WrapPanel>
+            </Grid>
+
+            <!-- Active view (calculator, converter, graphing) -->
+            <ContentControl Grid.Row="1"
+                            Content="{Binding CurrentViewModel}"
+                            Focusable="False"/>
+        </Grid>
+
+        <!-- ============================== -->
+        <!-- HISTORY SIDEBAR (collapsible)  -->
+        <!-- ============================== -->
+        <Grid x:Name="HistoryContainer"
+              Grid.Column="1"
+              Margin="0"
+              Visibility="{Binding IsHistoryOpen, Converter={StaticResource BoolToVisConverter}}">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <GridSplitter x:Name="HistorySplitter"
+                          Grid.Column="0"
+                          Width="4"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"
+                          Background="Transparent"
+                          ResizeBehavior="PreviousAndNext"
+                          ResizeDirection="Columns"/>
+
+            <local:HistoryControl x:Name="HistoryPanel"
+                                  Grid.Column="1"
+                                  HistoryItemSelect="HistoryPanel_HistoryItemSelect"
+                                  HistoryCleared="HistoryPanel_HistoryCleared"/>
+        </Grid>
+
+        <!-- ============================== -->
+        <!-- FLOATING NAVIGATION OVERLAY    -->
+        <!-- Sits on top of everything via  -->
+        <!-- Panel.ZIndex; does not affect  -->
+        <!-- the column flow.               -->
+        <!-- ============================== -->
+        <Canvas x:Name="OverlayLayer"
+                Grid.Column="0"
+                Grid.ColumnSpan="2"
+                Panel.ZIndex="100"
+                Background="Transparent"
+                IsHitTestVisible="{Binding IsMenuOpen}"
+                MouseLeftButtonDown="OverlayLayer_MouseLeftButtonDown">
+            <local:MenuControl x:Name="MenuPanel"
+                               Width="0"
+                               Canvas.Left="0"
+                               Canvas.Top="0"
+                               IsHitTestVisible="True"
+                               MenuOptionSelected="MenuPanel_MenuOptionSelected"
+                               MenuToggleRequest="MenuPanel_MenuToggleRequest"/>
+        </Canvas>
+    </Grid>
+</Window>

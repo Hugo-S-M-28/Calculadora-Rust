@@ -1,0 +1,81 @@
+<UserControl x:Class="CalculatorGui.HistoryControl"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             xmlns:local="clr-namespace:CalculatorGui"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="300"
+             Background="{DynamicResource SidebarBgBrush}">
+    
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- History Header -->
+        <Border Grid.Row="0" Padding="15" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,0,0,1">
+            <TextBlock Text="Historial de Cálculos" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource TextMainBrush}"/>
+        </Border>
+
+        <!-- History List -->
+        <ListBox x:Name="LstHistory" 
+                 Grid.Row="1" 
+                 Background="Transparent" 
+                 BorderThickness="0" 
+                 ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                 MouseDoubleClick="LstHistory_MouseDoubleClick"
+                 Padding="10">
+            <ListBox.ItemContainerStyle>
+                <Style TargetType="ListBoxItem">
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="Margin" Value="0,0,0,8"/>
+                    <Setter Property="Padding" Value="0"/>
+                    <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="ListBoxItem">
+                                <Border x:Name="border" 
+                                        Background="{DynamicResource ScreenBgBrush}" 
+                                        BorderBrush="{DynamicResource BorderBrush}" 
+                                        BorderThickness="1" 
+                                        CornerRadius="8" 
+                                        Padding="10">
+                                    <ContentPresenter/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsMouseOver" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="{DynamicResource ButtonHoverBgBrush}"/>
+                                        <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource SciButtonTextBrush}"/>
+                                    </Trigger>
+                                    <Trigger Property="IsSelected" Value="True">
+                                        <Setter TargetName="border" Property="Background" Value="{DynamicResource ButtonHoverBgBrush}"/>
+                                        <Setter TargetName="border" Property="BorderBrush" Value="{DynamicResource OpButtonTextBrush}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                </Style>
+            </ListBox.ItemContainerStyle>
+            <ListBox.ItemTemplate>
+                <DataTemplate>
+                    <StackPanel>
+                        <TextBlock Text="{Binding Expression}" Foreground="{DynamicResource TextSecBrush}" FontSize="12" TextAlignment="Left" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding Result}" Foreground="{DynamicResource SciButtonTextBrush}" FontSize="16" FontWeight="Bold" TextAlignment="Right" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+        <!-- History Controls -->
+        <Border Grid.Row="2" Padding="10" BorderBrush="{DynamicResource BorderBrush}" BorderThickness="0,1,0,0">
+            <Button Content="Borrar Historial" 
+                    Style="{DynamicResource PillButtonStyle}" 
+                    Height="35" 
+                    Click="ClearHistory_Click"/>
+        </Border>
+    </Grid>
+</UserControl>

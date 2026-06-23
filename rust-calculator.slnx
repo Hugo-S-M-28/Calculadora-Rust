@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/Rust/">
+    <File Path="Cargo.toml" />
+    <File Path="src/lib.rs" />
+    <File Path="src/main.rs" />
+    <File Path="src/calculator/ast.rs" />
+    <File Path="src/calculator/calculator.rs" />
+    <File Path="src/calculator/evaluator.rs" />
+    <File Path="src/calculator/lexer.rs" />
+    <File Path="src/calculator/mod.rs" />
+    <File Path="src/calculator/parser.rs" />
+    <File Path="src/calculator/token.rs" />
+  </Folder>
+  <Project Path="CalculatorGui/CalculatorGui.csproj" />
+</Solution>
