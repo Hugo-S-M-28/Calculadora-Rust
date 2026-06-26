@@ -25,7 +25,7 @@ graph TD
         D --> E["Analizador Léxico (lexer.rs)"]
         E -->|Preprocesamiento de Tokens| F["Multiplicación Implícita e Infix Auto-close"]
         F -->|Tokens Validados| G["Analizador Sintáctico (parser.rs)"]
-        G -->|AST (Árbol de Sintaxis)| H["Evaluador Matemático (evaluator.rs)"]
+        G -->|"AST (Árbol de Sintaxis)"| H["Evaluador Matemático (evaluator.rs)"]
         H -->|Memoria y ANS| I["Estado Mutable (value.rs)"]
     end
 ```
