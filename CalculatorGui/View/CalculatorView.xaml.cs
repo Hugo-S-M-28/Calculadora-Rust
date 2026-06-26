@@ -30,8 +30,12 @@ namespace CalculatorGui.View
                         return;
                     }
 
-                    if (info.SpecialType == "C" || info.SpecialType == "CE" || info.SpecialType == "Equal" || info.SpecialType == "ToggleSecond")
+                    if (info.SpecialType == "Clear" || info.SpecialType == "Equal" || info.SpecialType == "ToggleSecond" || info.SpecialType == "Ans")
                     {
+                        if (info.SpecialType == "Equal")
+                        {
+                            Keyboard.ClearFocus();
+                        }
                         return;
                     }
 
@@ -67,6 +71,10 @@ namespace CalculatorGui.View
                     string content = btn.Content.ToString() ?? "";
                     if (content == "C" || content == "CE" || content == "⌫" || content == "=" || content == "ANS" || content == "2nd" || content == "Resolver Ecuación" || content == "DEG" || content == "RAD")
                     {
+                        if (content == "=")
+                        {
+                            Keyboard.ClearFocus();
+                        }
                         return;
                     }
 
@@ -97,22 +105,35 @@ namespace CalculatorGui.View
 
         private void BtnTrig_Click(object sender, RoutedEventArgs e)
         {
-            if (BtnTrig.ContextMenu != null)
-            {
-                BtnTrig.ContextMenu.PlacementTarget = BtnTrig;
-                BtnTrig.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-                BtnTrig.ContextMenu.IsOpen = true;
-            }
+            PopupTrig.IsOpen = true;
         }
 
         private void BtnFunc_Click(object sender, RoutedEventArgs e)
         {
-            if (BtnFunc.ContextMenu != null)
+            PopupFunc.IsOpen = true;
+        }
+
+        private void PopupButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Content != null)
             {
-                BtnFunc.ContextMenu.PlacementTarget = BtnFunc;
-                BtnFunc.ContextMenu.Placement = System.Windows.Controls.Primitives.PlacementMode.Bottom;
-                BtnFunc.ContextMenu.IsOpen = true;
+                string functionName = btn.Content.ToString() ?? "";
+                AppendText(functionName + "(");
+                PopupTrig.IsOpen = false;
+                PopupFunc.IsOpen = false;
             }
+        }
+
+        private void PopupButtonVariable_Click(object sender, RoutedEventArgs e)
+        {
+            AppendText("x");
+            PopupFunc.IsOpen = false;
+        }
+
+        private void PopupButtonSolve_Click(object sender, RoutedEventArgs e)
+        {
+            SolveEqButton_Click(sender, e);
+            PopupFunc.IsOpen = false;
         }
 
         private void MenuItem_Click(object sender, RoutedEventArgs e)
@@ -268,6 +289,7 @@ namespace CalculatorGui.View
             if (e.Key == Key.Enter)
             {
                 ViewModel?.CalculateCommand.Execute(null);
+                Keyboard.ClearFocus();
                 e.Handled = true;
             }
         }

@@ -29,10 +29,15 @@ namespace CalculatorGui.ViewModel
 
         public ConverterViewModel()
         {
-            Categories.Add(new CategoryItem { Tag = "length", Name = "Longitud" });
-            Categories.Add(new CategoryItem { Tag = "temperature", Name = "Temperatura" });
-            Categories.Add(new CategoryItem { Tag = "mass", Name = "Masa" });
-            Categories.Add(new CategoryItem { Tag = "volume", Name = "Volumen" });
+            Categories.Add(new CategoryItem { Tag = "length",      Name = "Longitud" });
+            Categories.Add(new CategoryItem { Tag = "temperature",  Name = "Temperatura" });
+            Categories.Add(new CategoryItem { Tag = "mass",         Name = "Masa" });
+            Categories.Add(new CategoryItem { Tag = "volume",       Name = "Volumen" });
+            Categories.Add(new CategoryItem { Tag = "velocity",     Name = "Velocidad" });
+            Categories.Add(new CategoryItem { Tag = "area",         Name = "\u00c1rea" });
+            Categories.Add(new CategoryItem { Tag = "time",         Name = "Tiempo" });
+            Categories.Add(new CategoryItem { Tag = "energy",       Name = "Energ\u00eda" });
+            Categories.Add(new CategoryItem { Tag = "pressure",     Name = "Presi\u00f3n" });
             SelectedCategory = Categories[0];
         }
 
@@ -153,6 +158,53 @@ namespace CalculatorGui.ViewModel
                 Units.Add(new UnitItem { Tag = "m3", Name = "Metros Cúbicos (m³)" });
                 Units.Add(new UnitItem { Tag = "ft3", Name = "Pies Cúbicos (ft³)" });
             }
+            else if (Category == "velocity")
+            {
+                Units.Add(new UnitItem { Tag = "m/s",  Name = "Metro/segundo (m/s)" });
+                Units.Add(new UnitItem { Tag = "km/h", Name = "Km/hora (km/h)" });
+                Units.Add(new UnitItem { Tag = "mph",  Name = "Millas/hora (mph)" });
+                Units.Add(new UnitItem { Tag = "ft/s", Name = "Pies/segundo (ft/s)" });
+                Units.Add(new UnitItem { Tag = "kn",   Name = "Nudos (kn)" });
+            }
+            else if (Category == "area")
+            {
+                Units.Add(new UnitItem { Tag = "m2",   Name = "Metros cuadrados (m²)" });
+                Units.Add(new UnitItem { Tag = "km2",  Name = "Km cuadrados (km²)" });
+                Units.Add(new UnitItem { Tag = "cm2",  Name = "Centímetros cuadrados (cm²)" });
+                Units.Add(new UnitItem { Tag = "ha",   Name = "Hectáreas (ha)" });
+                Units.Add(new UnitItem { Tag = "acre", Name = "Acres (acre)" });
+                Units.Add(new UnitItem { Tag = "ft2",  Name = "Pies cuadrados (ft²)" });
+            }
+            else if (Category == "time")
+            {
+                Units.Add(new UnitItem { Tag = "s",   Name = "Segundos (s)" });
+                Units.Add(new UnitItem { Tag = "ms",  Name = "Milisegundos (ms)" });
+                Units.Add(new UnitItem { Tag = "min", Name = "Minutos (min)" });
+                Units.Add(new UnitItem { Tag = "h",   Name = "Horas (h)" });
+                Units.Add(new UnitItem { Tag = "d",   Name = "Días (d)" });
+                Units.Add(new UnitItem { Tag = "wk",  Name = "Semanas (sem)" });
+                Units.Add(new UnitItem { Tag = "yr",  Name = "Años (año)" });
+            }
+            else if (Category == "energy")
+            {
+                Units.Add(new UnitItem { Tag = "J",    Name = "Julios (J)" });
+                Units.Add(new UnitItem { Tag = "kJ",   Name = "Kilojulios (kJ)" });
+                Units.Add(new UnitItem { Tag = "cal",  Name = "Calorías (cal)" });
+                Units.Add(new UnitItem { Tag = "kcal", Name = "Kilocalorías (kcal)" });
+                Units.Add(new UnitItem { Tag = "kWh",  Name = "Kilovatios-hora (kWh)" });
+                Units.Add(new UnitItem { Tag = "eV",   Name = "Electronvoltios (eV)" });
+                Units.Add(new UnitItem { Tag = "BTU",  Name = "BTU" });
+            }
+            else if (Category == "pressure")
+            {
+                Units.Add(new UnitItem { Tag = "Pa",   Name = "Pascales (Pa)" });
+                Units.Add(new UnitItem { Tag = "kPa",  Name = "Kilopascales (kPa)" });
+                Units.Add(new UnitItem { Tag = "bar",  Name = "Bares (bar)" });
+                Units.Add(new UnitItem { Tag = "atm",  Name = "Atmósferas (atm)" });
+                Units.Add(new UnitItem { Tag = "psi",  Name = "PSI (psi)" });
+                Units.Add(new UnitItem { Tag = "mmHg", Name = "mmHg" });
+            }
+
 
             if (Units.Count > 0) SelectedFromUnit = Units[0];
             if (Units.Count > 1) SelectedToUnit = Units[1];
@@ -169,7 +221,14 @@ namespace CalculatorGui.ViewModel
             if (double.TryParse(valStr, NumberStyles.Any, CultureInfo.InvariantCulture, out double value))
             {
                 double result = CalculatorBridge.ConvertUnits(value, SelectedFromUnit.Tag, SelectedToUnit.Tag, Category);
-                ToValue = result.ToString("G9", CultureInfo.InvariantCulture);
+                if (double.IsNaN(result))
+                {
+                    ToValue = "Error";
+                }
+                else
+                {
+                    ToValue = result.ToString("G9", CultureInfo.InvariantCulture);
+                }
             }
             else
             {

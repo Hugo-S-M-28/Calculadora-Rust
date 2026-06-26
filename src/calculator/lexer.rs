@@ -1,3 +1,4 @@
+#![allow(clippy::approx_constant)]
 use crate::calculator::calculator::CalculatorError;
 use crate::calculator::token::Token;
 
@@ -22,13 +23,21 @@ pub(crate) fn lex(input: &str) -> Result<Vec<Token>, CalculatorError> {
         match c {
             '0'..='9' | '.' => {
                 // Analiza el número
-                let number = parse_number(&mut chars);
+                let number = parse_number(&mut chars)?;
                 // Maneja combinaciones donde una constante sigue inmediatamente a un número (ej. 2pi -> 2 * pi)
                 handle_number_constant_combination(&mut chars, &mut tokens, number);
             },
             '+' => { chars.next(); tokens.push(Token::Plus); },
             '-' => { chars.next(); tokens.push(Token::Minus); },
-            '*' => { chars.next(); tokens.push(Token::Multiply); },
+            '*' => {
+                chars.next();
+                if chars.peek() == Some(&'*') {
+                    chars.next();
+                    tokens.push(Token::Power);
+                } else {
+                    tokens.push(Token::Multiply);
+                }
+            },
             '/' => { chars.next(); tokens.push(Token::Divide); },
             '^' => { chars.next(); tokens.push(Token::Power); },
             '%' => { chars.next(); tokens.push(Token::Percent); },
@@ -43,12 +52,12 @@ pub(crate) fn lex(input: &str) -> Result<Vec<Token>, CalculatorError> {
             _ if c.is_alphabetic() => {
                 // Analiza e inserta tokens para constantes, funciones o variables
                 let name = parse_identifier(&mut chars);
-                if ["pi", "e", "tau", "phi", "sqrt2", "ans", "c", "C", "h", "H", "g", "G"].contains(&name.as_str()) {
+                if ["pi", "e", "tau", "phi", "sqrt2", "ans", "c_light", "C_light", "h_planck", "H_planck", "g_grav", "G_grav"].contains(&name.as_str()) {
                     handle_constant(&name, &mut tokens)?;
                 } else if ["sinpi", "cospi", "tanpi", "ctanpi", "sine", "cose", "tane", "ctane"].contains(&name.as_str()) {
                     handle_function_with_constant(&name, &mut tokens)?;
                 } else {
-                    handle_function(&name, &mut chars, &mut tokens);
+                    handle_function(&name, &mut chars, &mut tokens)?;
                 }
             },
             _ if c.is_whitespace() => {
@@ -65,10 +74,18 @@ pub(crate) fn lex(input: &str) -> Result<Vec<Token>, CalculatorError> {
 
 /// Analiza una secuencia de caracteres y la convierte en un número de punto flotante.
 /// Soporta notación científica (ej. 1.2e3, 1.2e-3).
-fn parse_number(chars: &mut std::iter::Peekable<std::str::Chars>) -> f64 {
+fn parse_number(chars: &mut std::iter::Peekable<std::str::Chars>) -> Result<f64, CalculatorError> {
     let mut number = String::new();
+    let mut dot_count = 0;
     while let Some(&c) = chars.peek() {
-        if c.is_digit(10) || c == '.' {
+        if c.is_digit(10) {
+            number.push(c);
+            chars.next();
+        } else if c == '.' {
+            dot_count += 1;
+            if dot_count > 1 {
+                return Err(CalculatorError::ParseError);
+            }
             number.push(c);
             chars.next();
         } else {
@@ -77,29 +94,38 @@ fn parse_number(chars: &mut std::iter::Peekable<std::str::Chars>) -> f64 {
     }
     // Soporte para notación científica: 1.2e3 / 1.2E-3
     if matches!(chars.peek(), Some(&'e') | Some(&'E')) {
-        chars.next();
-        number.push('e');
-        if matches!(chars.peek(), Some(&'+') | Some(&'-')) {
-            number.push(chars.next().unwrap());
+        let mut temp_chars = chars.clone();
+        temp_chars.next(); // Consume 'e'
+        if matches!(temp_chars.peek(), Some(&'+') | Some(&'-')) {
+            temp_chars.next(); // Consume signo
         }
-        while let Some(&c) = chars.peek() {
-            if c.is_digit(10) {
-                number.push(c);
-                chars.next();
-            } else {
-                break;
+        let has_digits = temp_chars.peek().map_or(false, |c| c.is_digit(10));
+        
+        if has_digits {
+            chars.next(); // Consume 'e'
+            number.push('e');
+            if matches!(chars.peek(), Some(&'+') | Some(&'-')) {
+                number.push(chars.next().unwrap());
+            }
+            while let Some(&c) = chars.peek() {
+                if c.is_digit(10) {
+                    number.push(c);
+                    chars.next();
+                } else {
+                    break;
+                }
             }
         }
     }
-    number.parse().unwrap_or(0.0)
+    number.parse().map_err(|_| CalculatorError::ParseError)
 }
 
 /// Analiza expresiones logarítmicas, incluyendo aquellas con base personalizada (ej. log2(8)), e inserta los tokens respectivos.
-fn parse_log(chars: &mut std::iter::Peekable<std::str::Chars>, tokens: &mut Vec<Token>) {
+fn parse_log(chars: &mut std::iter::Peekable<std::str::Chars>, tokens: &mut Vec<Token>) -> Result<(), CalculatorError> {
     // Comprueba directamente si sigue un dígito o '.' para determinar si se ha especificado una base.
     if chars.peek().map_or(false, |c| c.is_digit(10) || *c == '.') {
-        let base = parse_number(chars);
-
+        let base = parse_number(chars)?;
+ 
         // Tras leer la base, comprueba si el siguiente carácter es un paréntesis de apertura.
         match chars.peek() {
             Some(&'(') => {
@@ -118,13 +144,14 @@ fn parse_log(chars: &mut std::iter::Peekable<std::str::Chars>, tokens: &mut Vec<
         // Si no hay base, se asume logaritmo común de base 10.
         tokens.push(Token::Log);
     }
+    Ok(())
 }
 
 /// Extrae una secuencia consecutiva de caracteres alfabéticos de un iterador de caracteres y devuelve una cadena.
 fn parse_identifier(chars: &mut std::iter::Peekable<std::str::Chars>) -> String {
     let mut name = String::new();
     while let Some(&c) = chars.peek() {
-        if c.is_alphabetic() {
+        if c.is_alphabetic() || c == '_' {
             name.push(c);
             chars.next();
         } else {
@@ -161,15 +188,15 @@ fn handle_constant(name: &str, tokens: &mut Vec<Token>) -> Result<(), Calculator
             tokens.push(Token::Ans);
             Ok(())
         },
-        "c" | "C" => {
+        "c_light" | "C_light" => {
             tokens.push(Token::ConstC);
             Ok(())
         },
-        "h" | "H" => {
+        "h_planck" | "H_planck" => {
             tokens.push(Token::ConstH);
             Ok(())
         },
-        "g" | "G" => {
+        "g_grav" | "G_grav" => {
             tokens.push(Token::ConstG);
             Ok(())
         },
@@ -179,9 +206,9 @@ fn handle_constant(name: &str, tokens: &mut Vec<Token>) -> Result<(), Calculator
 
 /// Procesa nombres de funciones matemáticas reconocidas y añade los tokens correspondientes.
 /// Si no coincide con ninguna función, se asume que es una variable.
-fn handle_function(name: &str, chars: &mut std::iter::Peekable<std::str::Chars>, tokens: &mut Vec<Token>) {
+fn handle_function(name: &str, chars: &mut std::iter::Peekable<std::str::Chars>, tokens: &mut Vec<Token>) -> Result<(), CalculatorError> {
     match name {
-        "log" => parse_log(chars, tokens),
+        "log" => parse_log(chars, tokens)?,
         "int" => tokens.push(Token::Int),
         "fract" => tokens.push(Token::Fract),
         "cbrt" => tokens.push(Token::Cbrt),
@@ -235,6 +262,8 @@ fn handle_function(name: &str, chars: &mut std::iter::Peekable<std::str::Chars>,
         "det" => tokens.push(Token::Det),
         "inv" => tokens.push(Token::Inv),
         "transpose" | "trans" => tokens.push(Token::Transpose),
+        "sort" => tokens.push(Token::Sort),
+        "tr" => tokens.push(Token::Tr),
         "rand" => tokens.push(Token::Rand),
         "normpdf" => tokens.push(Token::NormPdf),
         "normcdf" => tokens.push(Token::NormCdf),
@@ -244,11 +273,18 @@ fn handle_function(name: &str, chars: &mut std::iter::Peekable<std::str::Chars>,
         "poisscdf" => tokens.push(Token::PoissCdf),
         _ => tokens.push(Token::Variable(name.to_string())),
     }
+    Ok(())
 }
 
 /// Analiza expresiones que combinan una función con una constante directamente sin operadores (ej. "sinpi" -> sin(pi)).
 fn handle_function_with_constant(name: &str, tokens: &mut Vec<Token>) -> Result<(), CalculatorError> {
-    let (func, const_part) = name.split_at(name.len() - 2);
+    let (func, const_part) = if name.ends_with("pi") {
+        name.split_at(name.len() - 2)
+    } else if name.ends_with('e') {
+        name.split_at(name.len() - 1)
+    } else {
+        return Err(CalculatorError::UnexpectedToken);
+    };
 
     match func {
         "sin" => tokens.push(Token::Sin),
@@ -276,6 +312,9 @@ fn handle_number_constant_combination(chars: &mut std::iter::Peekable<std::str::
                 chars.next(); // Salta 'i'
                 tokens.push(Token::Multiply);
                 tokens.push(Token::Pi);
+            } else {
+                tokens.push(Token::Multiply);
+                tokens.push(Token::Variable("p".to_string()));
             }
         },
         Some('e') => {
@@ -308,7 +347,6 @@ fn is_left_multiplicand(token: &Token) -> bool {
             | Token::ConstG
             | Token::RightParenthesis
             | Token::RightBracket
-            | Token::Percent
             | Token::Excl
     )
 }
@@ -346,13 +384,21 @@ fn preprocess_tokens(tokens: Vec<Token>) -> Vec<Token> {
             Token::LeftParenthesis => paren_stack.push(Token::RightParenthesis),
             Token::LeftBracket => paren_stack.push(Token::RightBracket),
             Token::RightParenthesis => {
-                if let Some(pos) = paren_stack.iter().rposition(|t| *t == Token::RightParenthesis) {
-                    paren_stack.remove(pos);
+                while let Some(top) = paren_stack.last() {
+                    if *top == Token::RightParenthesis {
+                        paren_stack.pop();
+                        break;
+                    }
+                    paren_stack.pop();
                 }
             }
             Token::RightBracket => {
-                if let Some(pos) = paren_stack.iter().rposition(|t| *t == Token::RightBracket) {
-                    paren_stack.remove(pos);
+                while let Some(top) = paren_stack.last() {
+                    if *top == Token::RightBracket {
+                        paren_stack.pop();
+                        break;
+                    }
+                    paren_stack.pop();
                 }
             }
             _ => {}
@@ -396,17 +442,17 @@ mod tests {
     #[test]
     fn test_parse_number() {
         let mut input = "123.456".chars().peekable();
-        assert_eq!(parse_number(&mut input), 123.456);
+        assert_eq!(parse_number(&mut input).unwrap(), 123.456);
 
         let mut input = "3.14pi".chars().peekable();
-        assert_eq!(parse_number(&mut input), 3.14); // Stops parsing at 'pi'
+        assert_eq!(parse_number(&mut input).unwrap(), 3.14); // Stops parsing at 'pi'
     }
 
     #[test]
     fn test_parse_log_with_explicit_base() {
         let mut chars = "100(10)".chars().peekable();
         let mut tokens = Vec::new();
-        parse_log(&mut chars, &mut tokens);
+        parse_log(&mut chars, &mut tokens).unwrap();
         println!("tokens{:?}", tokens);
         assert_eq!(tokens, vec![Token::LogBase(100.0)]);
     }
@@ -415,7 +461,7 @@ mod tests {
     fn test_parse_log_with_implicit_base() {
         let mut chars = "".chars().peekable();
         let mut tokens = Vec::new();
-        parse_log(&mut chars, &mut tokens);
+        parse_log(&mut chars, &mut tokens).unwrap();
         assert_eq!(tokens, vec![Token::Log]);
     }
 
@@ -430,7 +476,7 @@ mod tests {
     fn test_handle_function_sin() {
         let mut chars = "(".chars().peekable();
         let mut tokens = Vec::new();
-        handle_function("sin", &mut chars, &mut tokens);
+        handle_function("sin", &mut chars, &mut tokens).unwrap();
         assert_eq!(tokens, vec![Token::Sin]);
     }
 

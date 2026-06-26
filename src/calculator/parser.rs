@@ -3,20 +3,38 @@ use crate::calculator::token::Token;
 use crate::calculator::ast::{AST, Operator, Function, ProbFunction};
 use crate::calculator::calculator::CalculatorError;
 
-/// Verifica si los paréntesis están balanceados en una secuencia de tokens.
+/// Verifica si los paréntesis y corchetes están balanceados en una secuencia de tokens.
 ///
 /// Esta función recorre los tokens utilizando una pila para controlar la apertura y cierre
-/// de paréntesis. Si hay paréntesis de cierre sobrantes o si tras terminar de leer quedan
-/// paréntesis abiertos, devuelve un error adecuado.
+/// de paréntesis `()` y corchetes `[]`. Detecta tanto tokens de cierre sobrantes como
+/// aperturas sin cerrar, y también detecta cierres con el tipo incorrecto (ej. `[1 + 2)`).
 fn check_parentheses(tokens: &[Token]) -> Result<(), CalculatorError> {
     let mut stack: VecDeque<Token> = VecDeque::new();
 
     for token in tokens {
         match token {
-            Token::LeftParenthesis => stack.push_back(Token::LeftParenthesis),
+            Token::LeftParenthesis => {
+                stack.push_back(Token::LeftParenthesis);
+                if stack.len() > 500 {
+                    return Err(CalculatorError::InvalidExpression);
+                }
+            }
+            Token::LeftBracket => {
+                stack.push_back(Token::LeftBracket);
+                if stack.len() > 500 {
+                    return Err(CalculatorError::InvalidExpression);
+                }
+            }
             Token::RightParenthesis => {
-                if stack.pop_back().is_none() {
-                    return Err(CalculatorError::UnmatchedRightParenthesis);
+                match stack.pop_back() {
+                    Some(Token::LeftParenthesis) => {},
+                    _ => return Err(CalculatorError::UnmatchedRightParenthesis),
+                }
+            },
+            Token::RightBracket => {
+                match stack.pop_back() {
+                    Some(Token::LeftBracket) => {},
+                    _ => return Err(CalculatorError::UnmatchedRightParenthesis),
                 }
             },
             _ => (),
@@ -69,11 +87,11 @@ fn parse_expression(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError
 
 /// Analiza un término que consiste en factores multiplicados, divididos, de módulo o porcentajes.
 fn parse_term(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError> {
-    let (mut lhs, mut rest) = parse_power(tokens)?;
+    let (mut lhs, mut rest) = parse_unary(tokens)?;
     while let Some(token) = rest.first() {
         match token {
             Token::Multiply | Token::Divide | Token::Mod | Token::Percent => {
-                let (rhs, next_tokens) = parse_power(&rest[1..])?;
+                let (rhs, next_tokens) = parse_unary(&rest[1..])?;
                 let op = match token {
                     Token::Multiply => Operator::Mul,
                     Token::Divide => Operator::Div,
@@ -90,13 +108,28 @@ fn parse_term(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError> {
     Ok((lhs, rest))
 }
 
+/// Analiza operadores unarios (+ y -).
+fn parse_unary(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError> {
+    match tokens.first() {
+        Some(Token::Minus) => {
+            let (rhs, rest) = parse_unary(&tokens[1..])?;
+            let lhs = AST::Num(-1.0);
+            Ok((AST::BinOp(Box::new(lhs), Operator::Mul, Box::new(rhs)), rest))
+        }
+        Some(Token::Plus) => {
+            parse_unary(&tokens[1..])
+        }
+        _ => parse_power(tokens),
+    }
+}
+
 /// Analiza una potencia (ej. x ^ y).
 fn parse_power(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError> {
     let (mut lhs, mut rest) = parse_factor(tokens)?;
     while let Some(token) = rest.first() {
         match token {
             Token::Power => {
-                let (rhs, next_tokens) = parse_power(&rest[1..])?;
+                let (rhs, next_tokens) = parse_unary(&rest[1..])?;
                 lhs = AST::BinOp(
                     Box::new(lhs),
                     Operator::Power,
@@ -214,14 +247,18 @@ fn parse_factor(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError> {
                     }
                 }
                 Token::Sum => {
-                    if args.len() != 4 {
+                    if args.len() == 1 {
+                        // sum([1,2,3]) = suma de vector
+                        AST::Func(Function::Sum, Box::new(args[0].clone()))
+                    } else if args.len() == 4 {
+                        let var_name = match &args[1] {
+                            AST::Var(name) => name.clone(),
+                            _ => return Err(CalculatorError::InvalidExpression),
+                        };
+                        AST::Sum(Box::new(args[0].clone()), var_name, Box::new(args[2].clone()), Box::new(args[3].clone()))
+                    } else {
                         return Err(CalculatorError::InvalidExpression);
                     }
-                    let var_name = match &args[1] {
-                        AST::Var(name) => name.clone(),
-                        _ => return Err(CalculatorError::InvalidExpression),
-                    };
-                    AST::Sum(Box::new(args[0].clone()), var_name, Box::new(args[2].clone()), Box::new(args[3].clone()))
                 }
                 Token::Prod => {
                     if args.len() != 4 {
@@ -238,15 +275,6 @@ fn parse_factor(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError> {
             Ok((ast, rest))
         }
         Some(Token::Number(n)) => Ok((AST::Num(*n), &tokens[1..])),
-        Some(Token::Minus) => {
-            let (rhs, rest) = parse_factor(&tokens[1..])?;
-            let lhs = AST::Num(-1.0);
-            Ok((AST::BinOp(Box::new(lhs), Operator::Mul, Box::new(rhs)), rest))
-        },
-        Some(Token::Plus) => {
-            // El operador unario '+' no altera el valor; simplemente se analiza el siguiente factor
-            parse_factor(&tokens[1..])
-        },
         Some(Token::Percent) => {
             // El signo '%' al principio de un factor como "%50" equivale a multiplicar por 0.01
             Ok((AST::Num(0.01), &tokens[1..]))
@@ -259,7 +287,17 @@ fn parse_factor(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError> {
                 _ => Err(CalculatorError::InvalidExpression),
             }
         },
-        Some(Token::Sin) | Some(Token::Cos) | Some(Token::Ctan) | Some(Token::Tan) | Some(Token::Ln) | Some(Token::Log) | Some(Token::Sqrt) | Some(Token::Abs) | Some(Token::Asin) | Some(Token::Acos) | Some(Token::Atan) | Some(Token::Sinh) | Some(Token::Cosh) | Some(Token::Tanh) | Some(Token::Asinh) | Some(Token::Acosh) | Some(Token::Atanh) | Some(Token::Fact) | Some(Token::Floor) | Some(Token::Ceil) | Some(Token::Round) | Some(Token::Trunc) | Some(Token::Int) | Some(Token::Fract) | Some(Token::Cbrt) | Some(Token::Re) | Some(Token::Im) | Some(Token::Conj) | Some(Token::Arg) | Some(Token::Exp) | Some(Token::Mean) | Some(Token::Median) | Some(Token::VarFunc) | Some(Token::Std) | Some(Token::Det) | Some(Token::Inv) | Some(Token::Transpose) => {
+        Some(Token::Log) => {
+            let (args, rest) = parse_arguments(&tokens[1..])?;
+            if args.len() == 1 {
+                Ok((AST::Func(Function::Log, Box::new(args[0].clone())), rest))
+            } else if args.len() == 2 {
+                Ok((AST::Func2(crate::calculator::ast::Function2::LogBase, Box::new(args[0].clone()), Box::new(args[1].clone())), rest))
+            } else {
+                Err(CalculatorError::InvalidExpression)
+            }
+        },
+        Some(Token::Sin) | Some(Token::Cos) | Some(Token::Ctan) | Some(Token::Tan) | Some(Token::Ln) | Some(Token::Sqrt) | Some(Token::Abs) | Some(Token::Asin) | Some(Token::Acos) | Some(Token::Atan) | Some(Token::Sinh) | Some(Token::Cosh) | Some(Token::Tanh) | Some(Token::Asinh) | Some(Token::Acosh) | Some(Token::Atanh) | Some(Token::Fact) | Some(Token::Floor) | Some(Token::Ceil) | Some(Token::Round) | Some(Token::Trunc) | Some(Token::Int) | Some(Token::Fract) | Some(Token::Cbrt) | Some(Token::Re) | Some(Token::Im) | Some(Token::Conj) | Some(Token::Arg) | Some(Token::Exp) | Some(Token::Mean) | Some(Token::Median) | Some(Token::VarFunc) | Some(Token::Std) | Some(Token::Det) | Some(Token::Inv) | Some(Token::Transpose) | Some(Token::Sort) | Some(Token::Tr) => {
             let func_token = tokens.first().unwrap();
             if tokens.get(1) != Some(&Token::LeftParenthesis) {
                 return Err(CalculatorError::InvalidExpression);
@@ -273,7 +311,6 @@ fn parse_factor(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError> {
                 Token::Cos => Function::Cos,
                 Token::Tan => Function::Tan,
                 Token::Ln => Function::Ln,
-                Token::Log => Function::Log,
                 Token::Ctan => Function::Ctan,
                 Token::Sqrt => Function::Sqrt,
                 Token::Abs => Function::Abs,
@@ -306,11 +343,30 @@ fn parse_factor(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError> {
                 Token::Det => Function::Det,
                 Token::Inv => Function::Inv,
                 Token::Transpose => Function::Transpose,
+                Token::Sort => Function::Sort,
+                Token::Tr => Function::Tr,
                 _ => return Err(CalculatorError::UnexpectedToken),
             };
             Ok((AST::Func(func, Box::new(expr)), &rest[1..]))
         },
-        Some(Token::Min) | Some(Token::Max) | Some(Token::Mod) | Some(Token::Gcd) | Some(Token::Lcm) | Some(Token::Ncr) | Some(Token::Npr) | Some(Token::Root) | Some(Token::Polar) | Some(Token::Cov) | Some(Token::Corr) | Some(Token::LinReg) => {
+        Some(Token::Min) | Some(Token::Max) => {
+            // min/max: 1 arg = operacion sobre vector, 2 args = comparacion entre escalares
+            let func_token = tokens.first().unwrap();
+            let (args, rest) = parse_arguments(&tokens[1..])?;
+            if args.len() == 1 {
+                let func = match func_token {
+                    Token::Min => Function::MinVec,
+                    Token::Max => Function::MaxVec,
+                    _ => unreachable!(),
+                };
+                Ok((AST::Func(func, Box::new(args[0].clone())), rest))
+            } else if args.len() == 2 {
+                parse_func2(tokens)
+            } else {
+                Err(CalculatorError::InvalidExpression)
+            }
+        },
+        Some(Token::Mod) | Some(Token::Gcd) | Some(Token::Lcm) | Some(Token::Ncr) | Some(Token::Npr) | Some(Token::Root) | Some(Token::Polar) | Some(Token::Cov) | Some(Token::Corr) | Some(Token::LinReg) => {
             parse_func2(tokens)
         },
         Some(Token::PolyReg) => {
@@ -369,36 +425,37 @@ fn parse_factor(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError> {
     Ok((ast, rest))
 }
 
-/// Analiza una llamada a una función con dos argumentos: `func2(arg1, arg2)`.
+/// Analiza una llamada a una función de múltiples argumentos genérica: `func(arg1, arg2, ...)`.
+///
+/// Usa `parse_arguments` internamente para extraer N argumentos separados por comas.
+/// Valida que el token de la función corresponda a una función de exactamente 2 argumentos.
 fn parse_func2(tokens: &[Token]) -> Result<(AST, &[Token]), CalculatorError> {
     let func_token = tokens.first().unwrap();
     if tokens.get(1) != Some(&Token::LeftParenthesis) {
         return Err(CalculatorError::InvalidExpression);
     }
-    let (arg1, rest) = parse_expression(&tokens[2..])?;
-    if rest.first() != Some(&Token::Comma) {
-        return Err(CalculatorError::InvalidExpression);
-    }
-    let (arg2, rest) = parse_expression(&rest[1..])?;
-    if rest.first() != Some(&Token::RightParenthesis) {
+    // Usa parse_arguments para extraer todos los argumentos separados por coma
+    let (args, rest) = parse_arguments(&tokens[1..])?;
+    if args.len() != 2 {
         return Err(CalculatorError::InvalidExpression);
     }
     let func = match func_token {
-        Token::Min => crate::calculator::ast::Function2::Min,
-        Token::Max => crate::calculator::ast::Function2::Max,
-        Token::Mod => crate::calculator::ast::Function2::Mod,
-        Token::Gcd => crate::calculator::ast::Function2::Gcd,
-        Token::Lcm => crate::calculator::ast::Function2::Lcm,
-        Token::Ncr => crate::calculator::ast::Function2::Ncr,
-        Token::Npr => crate::calculator::ast::Function2::Npr,
-        Token::Root => crate::calculator::ast::Function2::Root,
-        Token::Polar => crate::calculator::ast::Function2::Polar,
-        Token::Cov => crate::calculator::ast::Function2::Cov,
-        Token::Corr => crate::calculator::ast::Function2::Corr,
+        Token::Min    => crate::calculator::ast::Function2::Min,
+        Token::Max    => crate::calculator::ast::Function2::Max,
+        Token::Mod    => crate::calculator::ast::Function2::Mod,
+        Token::Gcd    => crate::calculator::ast::Function2::Gcd,
+        Token::Lcm    => crate::calculator::ast::Function2::Lcm,
+        Token::Ncr    => crate::calculator::ast::Function2::Ncr,
+        Token::Npr    => crate::calculator::ast::Function2::Npr,
+        Token::Root   => crate::calculator::ast::Function2::Root,
+        Token::Polar  => crate::calculator::ast::Function2::Polar,
+        Token::Cov    => crate::calculator::ast::Function2::Cov,
+        Token::Corr   => crate::calculator::ast::Function2::Corr,
         Token::LinReg => crate::calculator::ast::Function2::LinReg,
         _ => return Err(CalculatorError::UnexpectedToken),
     };
-    Ok((AST::Func2(func, Box::new(arg1), Box::new(arg2)), &rest[1..]))
+    let (arg1, arg2) = (args[0].clone(), args[1].clone());
+    Ok((AST::Func2(func, Box::new(arg1), Box::new(arg2)), rest))
 }
 
 #[cfg(test)]
@@ -484,4 +541,39 @@ mod tests {
         assert!(matches!(result.0, AST::BinOp(_, Operator::Mul, _)));
         assert!(result.1.is_empty());
     }
-}
+
+    // MEJ-13: Tests de balance de corchetes []
+    #[test]
+    fn test_check_brackets_balanced() {
+        // [1, 2, 3] — corchetes balanceados
+        let tokens = vec![
+            Token::LeftBracket, Token::Number(1.0), Token::Comma,
+            Token::Number(2.0), Token::RightBracket,
+        ];
+        assert_eq!(check_parentheses(&tokens), Ok(()));
+    }
+
+    #[test]
+    fn test_check_brackets_unmatched_right() {
+        // 1, 2] — corchete de cierre sin apertura
+        let tokens = vec![Token::Number(1.0), Token::Comma, Token::Number(2.0), Token::RightBracket];
+        assert_eq!(check_parentheses(&tokens), Err(CalculatorError::UnmatchedRightParenthesis));
+    }
+
+    #[test]
+    fn test_check_brackets_unmatched_left() {
+        // [1, 2 — corchete de apertura sin cierre
+        let tokens = vec![Token::LeftBracket, Token::Number(1.0), Token::Comma, Token::Number(2.0)];
+        assert_eq!(check_parentheses(&tokens), Err(CalculatorError::UnmatchedLeftParenthesis));
+    }
+
+    #[test]
+    fn test_check_mixed_paren_bracket_mismatch() {
+        // [1 + 2) — abre con [ pero cierra con ) → error
+        let tokens = vec![
+            Token::LeftBracket, Token::Number(1.0), Token::Plus,
+            Token::Number(2.0), Token::RightParenthesis,
+        ];
+        assert_eq!(check_parentheses(&tokens), Err(CalculatorError::UnmatchedRightParenthesis));
+    }
+}

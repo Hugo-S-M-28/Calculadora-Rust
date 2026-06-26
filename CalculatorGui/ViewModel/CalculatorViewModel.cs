@@ -17,7 +17,7 @@ namespace CalculatorGui.ViewModel
         private double _previewOpacity = 0.5;
         private bool _isScientific = true;
         private bool _isSecondFunction = false;
-        private bool _angleModeDegrees = false;
+        private byte _angleMode = 0; // 0=RAD, 1=DEG, 2=GRAD
         private readonly ObservableCollection<HistoryItem> _history;
 
         public ObservableCollection<ButtonInfo> ScientificButtons { get; } = new ObservableCollection<ButtonInfo>();
@@ -32,7 +32,7 @@ namespace CalculatorGui.ViewModel
             BackspaceCommand = new RelayCommand(_ => Backspace());
             CalculateCommand = new RelayCommand(_ => Calculate());
             ToggleSecondCommand = new RelayCommand(_ => IsSecondFunction = !IsSecondFunction);
-            ToggleAngleModeCommand = new RelayCommand(_ => AngleModeDegrees = !AngleModeDegrees);
+            ToggleAngleModeCommand = new RelayCommand(_ => AngleMode = (byte)((_angleMode + 1) % 3));
             InsertAnsCommand = new RelayCommand(_ => InsertAns());
 
             InitializeButtons();
@@ -189,15 +189,14 @@ namespace CalculatorGui.ViewModel
             }
         }
 
-        // Modo de medición de ángulos: false = Radianes (RAD), true = Grados (DEG)
-        public bool AngleModeDegrees
+        // Modo de medición de ángulos: 0=Radianes (RAD), 1=Grados (DEG), 2=Gradianes (GRAD)
+        public byte AngleMode
         {
-            get => _angleModeDegrees;
+            get => _angleMode;
             set
             {
-                if (SetProperty(ref _angleModeDegrees, value))
+                if (SetProperty(ref _angleMode, value))
                 {
-                    // Actualiza el modo en el motor Rust
                     CalculatorBridge.SetAngleMode(value);
                     OnPropertyChanged(nameof(AngleModeText));
                     UpdateValidationStatus();
@@ -205,7 +204,12 @@ namespace CalculatorGui.ViewModel
             }
         }
 
-        public string AngleModeText => AngleModeDegrees ? "DEG" : "RAD";
+        public string AngleModeText => _angleMode switch
+        {
+            1 => "DEG",
+            2 => "GRAD",
+            _ => "RAD",
+        };
 
         public ICommand ClearCommand { get; }
         public ICommand BackspaceCommand { get; }

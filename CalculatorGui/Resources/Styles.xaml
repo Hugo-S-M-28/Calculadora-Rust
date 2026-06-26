@@ -7,7 +7,7 @@
                 Background="{TemplateBinding Background}" 
                 BorderBrush="{DynamicResource BorderBrush}" 
                 BorderThickness="{TemplateBinding BorderThickness}" 
-                CornerRadius="4" 
+                CornerRadius="12" 
                 SnapsToDevicePixels="True">
             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
         </Border>
@@ -56,6 +56,12 @@
         <Setter Property="Foreground" Value="{DynamicResource SciButtonTextBrush}"/>
     </Style>
 
+    <!-- Popup Buttons Style -->
+    <Style x:Key="PopupButtonStyle" TargetType="Button" BasedOn="{StaticResource CircleButtonBase}">
+        <Setter Property="Background" Value="{DynamicResource SciButtonBgBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SciButtonTextBrush}"/>
+    </Style>
+
     <!-- Operator Buttons Style -->
     <Style x:Key="OpButtonStyle" TargetType="Button" BasedOn="{StaticResource CalculatorButtonStyleBase}">
         <Setter Property="Background" Value="{DynamicResource OpButtonBgBrush}"/>
@@ -73,7 +79,7 @@
                             Background="{TemplateBinding Background}" 
                             BorderBrush="{DynamicResource BorderBrush}" 
                             BorderThickness="{TemplateBinding BorderThickness}" 
-                            CornerRadius="4" 
+                            CornerRadius="12" 
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
@@ -99,7 +105,7 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="Button">
-                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="4" SnapsToDevicePixels="True">
+                    <Border x:Name="border" Background="{TemplateBinding Background}" CornerRadius="12" SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                     <ControlTemplate.Triggers>
@@ -132,7 +138,7 @@
                             Background="{TemplateBinding Background}" 
                             BorderBrush="{DynamicResource BorderBrush}" 
                             BorderThickness="{TemplateBinding BorderThickness}" 
-                            CornerRadius="4" 
+                            CornerRadius="12" 
                             SnapsToDevicePixels="True">
                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>

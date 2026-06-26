@@ -16,7 +16,7 @@
     </UserControl.Resources>
 
     <Viewbox Stretch="Uniform">
-        <Grid Width="640" Height="500">
+        <Grid Width="380" Height="600">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
@@ -24,52 +24,112 @@
                 <RowDefinition Height="*"/>
             </Grid.RowDefinitions>
 
-            <!-- Row 0: Screen -->
-            <Grid Grid.Row="0" Margin="10,15,10,5">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                
-                <!-- Notation Type -->
-                <TextBlock Text="{Binding NotationType}" 
-                           Foreground="{DynamicResource TextSecBrush}" 
-                           FontSize="11" 
-                           HorizontalAlignment="Left" 
-                           VerticalAlignment="Top"
-                           Margin="5,0,0,5"/>
-                
-                <!-- Expression Input -->
-                <TextBox x:Name="TxtExpression" 
-                         Grid.Row="1" 
-                         Text="{Binding Expression, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
-                         Background="Transparent" 
-                         BorderThickness="0" 
-                         Foreground="{DynamicResource TextSecBrush}" 
-                         FontSize="16" 
-                         FontFamily="Segoe UI" 
-                         TextAlignment="Right" 
-                         VerticalAlignment="Center" 
-                         CaretBrush="{DynamicResource SciButtonTextBrush}"
-                         TextWrapping="Wrap"
-                         AcceptsReturn="False"
-                         GotFocus="TxtExpression_GotFocus"
-                         PreviewKeyDown="TxtExpression_PreviewKeyDown"
-                         Margin="0,0,0,5"/>
+            <!-- Row 0: Screen (LCD glass container) -->
+            <Border Grid.Row="0" 
+                    Margin="10,15,10,10" 
+                    Background="{DynamicResource ScreenBgBrush}" 
+                    BorderBrush="{DynamicResource BorderBrush}" 
+                    BorderThickness="1.5" 
+                    CornerRadius="8" 
+                    Padding="12,10,12,10">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Status Bar -->
+                        <RowDefinition Height="50"/>  <!-- Expression (Input/Overlay) -->
+                        <RowDefinition Height="75"/>  <!-- Result Output -->
+                    </Grid.RowDefinitions>
 
-                <!-- Preview / Result Output -->
-                <Viewbox Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" MaxHeight="70">
-                    <TextBlock x:Name="TxtResult" 
-                               Text="{Binding Result}" 
-                               Opacity="{Binding PreviewOpacity}"
-                               Foreground="{DynamicResource TextMainBrush}" 
-                               FontSize="48" 
-                               FontWeight="SemiBold" 
-                               TextAlignment="Right" 
-                               Margin="0,0,5,0"/>
-                </Viewbox>
-            </Grid>
+                    <!-- Top Status Bar: Notation Type & Angle Mode -->
+                    <Grid Grid.Row="0" Margin="0,0,0,5">
+                        <TextBlock Text="{Binding NotationType}" 
+                                   Foreground="{DynamicResource TextSecBrush}" 
+                                   FontSize="11" 
+                                   HorizontalAlignment="Left" 
+                                   VerticalAlignment="Center"/>
+                        
+                        <TextBlock Text="{Binding AngleModeText}" 
+                                   Foreground="{DynamicResource TextSecBrush}" 
+                                   FontSize="11" 
+                                   FontWeight="SemiBold"
+                                   HorizontalAlignment="Right" 
+                                   VerticalAlignment="Center"
+                                   Margin="0,0,5,0">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsScientific}" Value="False">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                    </Grid>
+
+                    <!-- Expression Row -->
+                    <Grid Grid.Row="1" VerticalAlignment="Center">
+                        <!-- Math Display Control (Natural formatting shown when not focused) -->
+                        <local:MathDisplayControl ExpressionString="{Binding Expression}"
+                                                 Foreground="{DynamicResource TextSecBrush}"
+                                                 FontSize="16"
+                                                 HorizontalAlignment="Right"
+                                                 VerticalAlignment="Center"
+                                                 IsHitTestVisible="False">
+                            <local:MathDisplayControl.Style>
+                                <Style TargetType="local:MathDisplayControl">
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding ElementName=TxtExpression, Path=IsFocused}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </local:MathDisplayControl.Style>
+                        </local:MathDisplayControl>
+
+                        <!-- Input TextBox (Standard text editing shown when focused) -->
+                        <TextBox x:Name="TxtExpression" 
+                                 Text="{Binding Expression, UpdateSourceTrigger=PropertyChanged, Mode=TwoWay}"
+                                 Background="Transparent" 
+                                 BorderThickness="0" 
+                                 Foreground="{DynamicResource TextSecBrush}" 
+                                 FontSize="16" 
+                                 FontFamily="Segoe UI" 
+                                 TextAlignment="Right" 
+                                 VerticalAlignment="Center" 
+                                 CaretBrush="{DynamicResource SciButtonTextBrush}"
+                                 TextWrapping="NoWrap"
+                                 AcceptsReturn="False"
+                                 GotFocus="TxtExpression_GotFocus"
+                                 PreviewKeyDown="TxtExpression_PreviewKeyDown">
+                            <TextBox.Style>
+                                <Style TargetType="TextBox">
+                                    <Setter Property="Opacity" Value="0"/>
+                                    <Style.Triggers>
+                                        <Trigger Property="IsFocused" Value="True">
+                                            <Setter Property="Opacity" Value="1"/>
+                                        </Trigger>
+                                        <DataTrigger Binding="{Binding Expression}" Value="">
+                                            <Setter Property="Opacity" Value="0.6"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBox.Style>
+                        </TextBox>
+                    </Grid>
+
+                    <!-- Result Row -->
+                    <Viewbox Grid.Row="2" HorizontalAlignment="Right" VerticalAlignment="Bottom" MaxHeight="70">
+                        <local:MathDisplayControl x:Name="TxtResult" 
+                                                 ExpressionString="{Binding Result}" 
+                                                 Opacity="{Binding PreviewOpacity}"
+                                                 Foreground="{DynamicResource TextMainBrush}" 
+                                                 FontSize="44" 
+                                                 FontWeight="SemiBold"/>
+                    </Viewbox>
+                </Grid>
+            </Border>
 
             <!-- Row 1: DEG and Memory bar -->
             <Grid Grid.Row="1" Margin="10,2">
@@ -111,9 +171,9 @@
             </Grid>
 
             <!-- Row 2: Menu dropdowns (Trigonometría, Función) -->
-            <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="10,2,10,5">
-                <StackPanel.Style>
-                    <Style TargetType="StackPanel">
+            <Grid Grid.Row="2" Margin="10,2,10,5">
+                <Grid.Style>
+                    <Style TargetType="Grid">
                         <Setter Property="Visibility" Value="Visible"/>
                         <Style.Triggers>
                             <DataTrigger Binding="{Binding IsScientific}" Value="False">
@@ -121,59 +181,82 @@
                             </DataTrigger>
                         </Style.Triggers>
                     </Style>
-                </StackPanel.Style>
-                <Button x:Name="BtnTrig" 
-                        Content="  Trigonometría ▾" 
-                        Style="{StaticResource MenuButtonStyle}" 
-                        Click="BtnTrig_Click"
-                        Margin="0,0,10,0">
-                    <Button.ContextMenu>
-                        <ContextMenu>
-                            <MenuItem Header="sin" Click="MenuItem_Click"/>
-                            <MenuItem Header="cos" Click="MenuItem_Click"/>
-                            <MenuItem Header="tan" Click="MenuItem_Click"/>
-                            <MenuItem Header="ctan" Click="MenuItem_Click"/>
-                            <Separator/>
-                            <MenuItem Header="asin" Click="MenuItem_Click"/>
-                            <MenuItem Header="acos" Click="MenuItem_Click"/>
-                            <MenuItem Header="atan" Click="MenuItem_Click"/>
-                            <Separator/>
-                            <MenuItem Header="sinh" Click="MenuItem_Click"/>
-                            <MenuItem Header="cosh" Click="MenuItem_Click"/>
-                            <MenuItem Header="tanh" Click="MenuItem_Click"/>
-                            <Separator/>
-                            <MenuItem Header="asinh" Click="MenuItem_Click"/>
-                            <MenuItem Header="acosh" Click="MenuItem_Click"/>
-                            <MenuItem Header="atanh" Click="MenuItem_Click"/>
-                        </ContextMenu>
-                    </Button.ContextMenu>
-                </Button>
+                </Grid.Style>
                 
-                <Button x:Name="BtnFunc" 
-                        Content="  Función ▾" 
-                        Style="{StaticResource MenuButtonStyle}" 
-                        Click="BtnFunc_Click">
-                    <Button.ContextMenu>
-                        <ContextMenu>
-                            <MenuItem Header="abs" Click="MenuItem_Click"/>
-                            <MenuItem Header="floor" Click="MenuItem_Click"/>
-                            <MenuItem Header="ceil" Click="MenuItem_Click"/>
-                            <MenuItem Header="round" Click="MenuItem_Click"/>
-                            <MenuItem Header="trunc" Click="MenuItem_Click"/>
-                            <Separator/>
-                            <MenuItem Header="min" Click="MenuItem_Click"/>
-                            <MenuItem Header="max" Click="MenuItem_Click"/>
-                            <MenuItem Header="mod" Click="MenuItem_Click"/>
-                            <MenuItem Header="gcd" Click="MenuItem_Click"/>
-                            <MenuItem Header="nCr" Click="MenuItem_Click"/>
-                            <MenuItem Header="nPr" Click="MenuItem_Click"/>
-                            <Separator/>
-                            <MenuItem Header="x" Click="MenuItemVariable_Click"/>
-                            <MenuItem Header="Resolver Ecuación" Click="MenuItemSolve_Click"/>
-                        </ContextMenu>
-                    </Button.ContextMenu>
-                </Button>
-            </StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <Button x:Name="BtnTrig" 
+                            Content="  Trigonometría ▾" 
+                            Style="{StaticResource MenuButtonStyle}" 
+                            Click="BtnTrig_Click"
+                            Margin="0,0,10,0"/>
+                    
+                    <Button x:Name="BtnFunc" 
+                            Content="  Función ▾" 
+                            Style="{StaticResource MenuButtonStyle}" 
+                            Click="BtnFunc_Click"/>
+                </StackPanel>
+
+                <!-- Popups for Trig and Func -->
+                <Popup x:Name="PopupTrig" 
+                       PlacementTarget="{Binding ElementName=BtnTrig}" 
+                       Placement="Bottom" 
+                       StaysOpen="False"
+                       AllowsTransparency="True">
+                    <Border Background="{DynamicResource WindowBgBrush}" 
+                            BorderBrush="{DynamicResource BorderBrush}" 
+                            BorderThickness="1.5" 
+                            CornerRadius="8" 
+                            Padding="6"
+                            Width="250">
+                        <UniformGrid Columns="4">
+                            <Button Content="sin" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="cos" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="tan" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="ctan" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="asin" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="acos" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="atan" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="sinh" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="cosh" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="tanh" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="asinh" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="acosh" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            <Button Content="atanh" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                        </UniformGrid>
+                    </Border>
+                </Popup>
+
+                <Popup x:Name="PopupFunc" 
+                       PlacementTarget="{Binding ElementName=BtnFunc}" 
+                       Placement="Bottom" 
+                       StaysOpen="False"
+                       AllowsTransparency="True">
+                    <Border Background="{DynamicResource WindowBgBrush}" 
+                            BorderBrush="{DynamicResource BorderBrush}" 
+                            BorderThickness="1.5" 
+                            CornerRadius="8" 
+                            Padding="6"
+                            Width="250">
+                        <StackPanel>
+                            <UniformGrid Columns="4">
+                                <Button Content="abs" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                                <Button Content="floor" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                                <Button Content="ceil" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                                <Button Content="round" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                                <Button Content="trunc" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                                <Button Content="min" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                                <Button Content="max" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                                <Button Content="mod" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                                <Button Content="gcd" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                                <Button Content="nCr" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                                <Button Content="nPr" Click="PopupButton_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                                <Button Content="x" Click="PopupButtonVariable_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                            </UniformGrid>
+                            <Button Content="Resolver Ecuación" Click="PopupButtonSolve_Click" Style="{StaticResource PopupButtonStyle}" Margin="2" Height="36" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+                </Popup>
+            </Grid>
 
             <!-- Row 3: Keypad Grid (Scientific: 5 columns, 7 rows) -->
             <ItemsControl ItemsSource="{Binding ScientificButtons}" Grid.Row="3" Margin="5,0,5,5">

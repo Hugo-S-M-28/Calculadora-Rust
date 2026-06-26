@@ -138,6 +138,16 @@ pub(crate) enum Function {
     Inv,
     /// Transpuesta de matriz (transpose)
     Transpose,
+    /// Suma de elementos de un vector (sum)
+    Sum,
+    /// Ordenar vector ascendente (sort)
+    Sort,
+    /// Traza de matriz cuadrada (tr)
+    Tr,
+    /// Mínimo elemento de un vector (min_vec, complementa a Function2::Min)
+    MinVec,
+    /// Máximo elemento de un vector (max_vec, complementa a Function2::Max)
+    MaxVec,
 }
 
 /// Funciones matemáticas científicas de dos argumentos.
@@ -167,4 +177,6 @@ pub(crate) enum Function2 {
     Corr,
     /// Regresión lineal (linreg)
     LinReg,
+    /// Logaritmo en base arbitraria (log)
+    LogBase,
 }

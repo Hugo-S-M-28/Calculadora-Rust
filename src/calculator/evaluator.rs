@@ -12,7 +12,8 @@ fn factorial_f64(n: f64) -> Result<f64, CalculatorError> {
     }
     let limit = n as u64;
     if limit > 170 {
-        return Err(CalculatorError::InvalidExpression);
+        // En lugar de error, devolver infinito como las calculadoras científicas
+        return Ok(f64::INFINITY);
     }
     let mut res = 1.0;
     for i in 1..=limit {
@@ -22,7 +23,10 @@ fn factorial_f64(n: f64) -> Result<f64, CalculatorError> {
 }
 
 fn gcd_f64(a: f64, b: f64) -> Result<f64, CalculatorError> {
-    if a.fract() != 0.0 || b.fract() != 0.0 {
+    if !a.is_finite() || !b.is_finite() || a.fract() != 0.0 || b.fract() != 0.0 {
+        return Err(CalculatorError::InvalidExpression);
+    }
+    if a.abs() > u64::MAX as f64 || b.abs() > u64::MAX as f64 {
         return Err(CalculatorError::InvalidExpression);
     }
     let mut x = a.abs() as u64;
@@ -36,7 +40,10 @@ fn gcd_f64(a: f64, b: f64) -> Result<f64, CalculatorError> {
 }
 
 fn lcm_f64(a: f64, b: f64) -> Result<f64, CalculatorError> {
-    if a.fract() != 0.0 || b.fract() != 0.0 {
+    if !a.is_finite() || !b.is_finite() || a.fract() != 0.0 || b.fract() != 0.0 {
+        return Err(CalculatorError::InvalidExpression);
+    }
+    if a.abs() > i64::MAX as f64 || b.abs() > i64::MAX as f64 {
         return Err(CalculatorError::InvalidExpression);
     }
     let x = a.abs() as i64;
@@ -67,10 +74,20 @@ fn n_choose_r(n: f64, r: f64) -> Result<f64, CalculatorError> {
     if r > n {
         return Err(CalculatorError::InvalidExpression);
     }
-    let n_fact = factorial_f64(n)?;
-    let r_fact = factorial_f64(r)?;
-    let diff_fact = factorial_f64(n - r)?;
-    Ok(n_fact / (r_fact * diff_fact))
+    let n_u = n as u64;
+    let mut r_u = r as u64;
+    if r_u > n_u / 2 {
+        r_u = n_u - r_u;
+    }
+    let mut result = 1.0;
+    for i in 0..r_u {
+        result *= (n_u - i) as f64;
+        result /= (i + 1) as f64;
+    }
+    if !result.is_finite() {
+        return Err(CalculatorError::InvalidExpression);
+    }
+    Ok(result)
 }
 
 fn n_permute_r(n: f64, r: f64) -> Result<f64, CalculatorError> {
@@ -80,9 +97,16 @@ fn n_permute_r(n: f64, r: f64) -> Result<f64, CalculatorError> {
     if r > n {
         return Err(CalculatorError::InvalidExpression);
     }
-    let n_fact = factorial_f64(n)?;
-    let diff_fact = factorial_f64(n - r)?;
-    Ok(n_fact / diff_fact)
+    let n_u = n as u64;
+    let r_u = r as u64;
+    let mut result = 1.0;
+    for i in 0..r_u {
+        result *= (n_u - i) as f64;
+    }
+    if !result.is_finite() {
+        return Err(CalculatorError::InvalidExpression);
+    }
+    Ok(result)
 }
 
 fn extract_coefficients_and_constants(ast: &AST, target_var: &str) -> Result<(f64, f64), CalculatorError> {
@@ -194,6 +218,12 @@ pub(crate) fn evaluate_infix(ast: &AST) -> Result<Value, CalculatorError> {
         AST::LogBase(base, expr) => {
             let expr_val = evaluate_infix(expr)?;
             let val = expr_val.to_scalar()?;
+            if val <= 0.0 {
+                return Err(CalculatorError::InvalidExpression);
+            }
+            if *base <= 0.0 || *base == 1.0 {
+                return Err(CalculatorError::InvalidExpression);
+            }
             Ok(Value::Scalar(val.log(*base)))
         },
         AST::Deriv(expr, var, point) => {
@@ -474,8 +504,18 @@ fn apply_function(func: &Function, arg_val: Value) -> Result<Value, CalculatorEr
     match arg_val {
         Value::Scalar(arg_f64) => {
             let res_f64 = match func {
-                Function::Log => arg_f64.log10(),
-                Function::Ln => arg_f64.ln(),
+                Function::Log => {
+                    if arg_f64 <= 0.0 {
+                        return Err(CalculatorError::InvalidExpression);
+                    }
+                    arg_f64.log10()
+                },
+                Function::Ln => {
+                    if arg_f64 <= 0.0 {
+                        return Err(CalculatorError::InvalidExpression);
+                    }
+                    arg_f64.ln()
+                },
                 Function::Sin => {
                     let r = to_radians(arg_f64, angle_mode);
                     r.sin()
@@ -497,7 +537,13 @@ fn apply_function(func: &Function, arg_val: Value) -> Result<Value, CalculatorEr
                         1.0 / t
                     }
                 },
-                Function::Sqrt => arg_f64.sqrt(),
+                Function::Sqrt => {
+                    if arg_f64 < 0.0 {
+                        // sqrt(-n) = 0 + sqrt(n)i
+                        return Ok(Value::Complex(num_complex::Complex::new(0.0, (-arg_f64).sqrt())));
+                    }
+                    arg_f64.sqrt()
+                },
                 Function::Abs => arg_f64.abs(),
                 Function::Asin => {
                     if arg_f64 < -1.0 || arg_f64 > 1.0 {
@@ -564,6 +610,11 @@ fn apply_function(func: &Function, arg_val: Value) -> Result<Value, CalculatorEr
                     1.0 / arg_f64
                 }
                 Function::Transpose => arg_f64,
+                Function::Sum => arg_f64,          // sum(scalar) = scalar
+                Function::Sort => arg_f64,          // sort(scalar) = scalar
+                Function::Tr => arg_f64,            // tr(scalar) = scalar
+                Function::MinVec => arg_f64,        // min(scalar) = scalar
+                Function::MaxVec => arg_f64,        // max(scalar) = scalar
             };
             Ok(Value::Scalar(res_f64))
         }
@@ -652,6 +703,24 @@ fn apply_function(func: &Function, arg_val: Value) -> Result<Value, CalculatorEr
                 Function::Transpose => {
                     Ok(Value::Matrix(nalgebra::DMatrix::from_row_slice(1, v.len(), &v)))
                 }
+                Function::Sum => {
+                    // sum([1,2,3,4]) = 10
+                    Ok(Value::Scalar(v.iter().sum()))
+                }
+                Function::MinVec => {
+                    if v.is_empty() { return Err(CalculatorError::InvalidExpression); }
+                    Ok(Value::Scalar(v.iter().cloned().fold(f64::INFINITY, f64::min)))
+                }
+                Function::MaxVec => {
+                    if v.is_empty() { return Err(CalculatorError::InvalidExpression); }
+                    Ok(Value::Scalar(v.iter().cloned().fold(f64::NEG_INFINITY, f64::max)))
+                }
+                Function::Sort => {
+                    // sort([3,1,2]) = [1,2,3]
+                    let mut sorted = v.clone();
+                    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+                    Ok(Value::Vector(sorted))
+                }
                 _ => Err(CalculatorError::InvalidExpression),
             }
         }
@@ -672,6 +741,13 @@ fn apply_function(func: &Function, arg_val: Value) -> Result<Value, CalculatorEr
                 }
                 Function::Transpose => {
                     Ok(Value::Matrix(m.transpose()))
+                }
+                Function::Tr => {
+                    // Traza: suma de elementos diagonales
+                    if m.nrows() != m.ncols() {
+                        return Err(CalculatorError::InvalidExpression);
+                    }
+                    Ok(Value::Scalar(m.trace()))
                 }
                 _ => Err(CalculatorError::InvalidExpression),
             }
@@ -700,6 +776,12 @@ fn apply_function2(func: &Function2, lhs_val: Value, rhs_val: Value) -> Result<V
                 Function2::Polar => {
                     let theta_rad = to_radians(rhs_f64, angle_mode);
                     Value::Complex(Complex::from_polar(lhs_f64, theta_rad))
+                }
+                Function2::LogBase => {
+                    if lhs_f64 <= 0.0 || rhs_f64 <= 0.0 || rhs_f64 == 1.0 {
+                        return Err(CalculatorError::InvalidExpression);
+                    }
+                    Value::Scalar(lhs_f64.log(rhs_f64))
                 }
                 _ => return Err(CalculatorError::InvalidExpression),
             };
@@ -801,7 +883,7 @@ pub(crate) fn evaluate_postfix(tokens: &[Token]) -> Result<Value, CalculatorErro
                 };
                 stack.push(result);
             },
-            Token::Log | Token::Ln | Token::Sin | Token::Cos | Token::Tan | Token::Ctan | Token::LogBase(_) | Token::Sqrt | Token::Abs | Token::Asin | Token::Acos | Token::Atan | Token::Sinh | Token::Cosh | Token::Tanh | Token::Asinh | Token::Acosh | Token::Atanh | Token::Fact | Token::Floor | Token::Ceil | Token::Round | Token::Trunc | Token::Int | Token::Fract | Token::Cbrt | Token::Exp | Token::Re | Token::Im | Token::Conj | Token::Arg | Token::Mean | Token::Median | Token::VarFunc | Token::Std | Token::Det | Token::Inv | Token::Transpose => {
+            Token::Log | Token::Ln | Token::Sin | Token::Cos | Token::Tan | Token::Ctan | Token::LogBase(_) | Token::Sqrt | Token::Abs | Token::Asin | Token::Acos | Token::Atan | Token::Sinh | Token::Cosh | Token::Tanh | Token::Asinh | Token::Acosh | Token::Atanh | Token::Fact | Token::Floor | Token::Ceil | Token::Round | Token::Trunc | Token::Int | Token::Fract | Token::Cbrt | Token::Exp | Token::Re | Token::Im | Token::Conj | Token::Arg | Token::Mean | Token::Median | Token::VarFunc | Token::Std | Token::Det | Token::Inv | Token::Transpose | Token::Sort | Token::Tr => {
                 if stack.is_empty() {
                     return Err(CalculatorError::InvalidExpression);
                 }
@@ -848,6 +930,8 @@ pub(crate) fn evaluate_postfix(tokens: &[Token]) -> Result<Value, CalculatorErro
                     Token::Det => apply_function(&Function::Det, arg)?,
                     Token::Inv => apply_function(&Function::Inv, arg)?,
                     Token::Transpose => apply_function(&Function::Transpose, arg)?,
+                    Token::Sort => apply_function(&Function::Sort, arg)?,
+                    Token::Tr => apply_function(&Function::Tr, arg)?,
                     _ => unreachable!(),
                 };
                 stack.push(result);

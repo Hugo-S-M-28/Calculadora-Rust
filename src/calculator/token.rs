@@ -11,9 +11,14 @@ pub(crate) enum Token {
     Multiply,
     /// Operador de división (/)
     Divide,
-    /// Operador de módulo (%)
+    /// Módulo matemático: usado internamente por la función `mod(a, b)`.
+    /// Semántica: resto de la división entera con el mismo signo que el divisor.
+    /// NOTA: El carácter `%` en el lexer se tokeniza como `Token::Percent` (porcentaje),
+    /// no como `Token::Mod`. Este token solo aparece por la ruta de la función `mod()`.
     Mod,
-    /// Operador de porcentaje (%)
+    /// Operador de porcentaje `%`: en contexto binario, `a % b` equivale a `a * b / 100`.
+    /// Por ejemplo: `200 % 15` = `200 * 15 / 100` = `30`.
+    /// No es lo mismo que el módulo matemático — ver `Token::Mod`.
     Percent,
     /// Paréntesis izquierdo (
     LeftParenthesis,
@@ -173,6 +178,10 @@ pub(crate) enum Token {
     PoissPdf,
     /// Distribución acumulada Poisson (poisscdf)
     PoissCdf,
+    /// Ordena un vector ascendente (sort)
+    Sort,
+    /// Traza de una matriz cuadrada (tr)
+    Tr,
     /// Representa el último resultado calculado (ANS)
     Ans,
 }

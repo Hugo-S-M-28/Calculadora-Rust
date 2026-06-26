@@ -53,6 +53,9 @@ namespace CalculatorGui
         [DllImport("calculator_core.dll", EntryPoint = "set_angle_mode_ffi", CallingConvention = CallingConvention.Cdecl)]
         private static extern void set_angle_mode_ffi(byte mode);
 
+        [DllImport("calculator_core.dll", EntryPoint = "set_decimal_precision_ffi", CallingConvention = CallingConvention.Cdecl)]
+        private static extern void set_decimal_precision_ffi(byte precision);
+
         [DllImport("calculator_core.dll", EntryPoint = "get_last_result_ffi", CallingConvention = CallingConvention.Cdecl)]
         private static extern double get_last_result_ffi();
 
@@ -60,14 +63,26 @@ namespace CalculatorGui
         private static extern void clear_last_result_ffi();
 
         /// <summary>
-        /// Establece el modo de ángulo en el motor de Rust (false para radianes, true para grados).
+        /// Establece el modo de ángulo en el motor de Rust.
+        /// 0 = Radianes, 1 = Grados, 2 = Gradianes.
         /// </summary>
-        public static void SetAngleMode(bool degrees)
+        public static void SetAngleMode(byte mode)
         {
-            try
-            {
-                set_angle_mode_ffi(degrees ? (byte)1 : (byte)0);
-            }
+            try { set_angle_mode_ffi(mode); }
+            catch { }
+        }
+
+        /// <summary>Sobrecarñga de compatibilidad: false = Radianes, true = Grados.</summary>
+        public static void SetAngleMode(bool degrees)
+            => SetAngleMode(degrees ? (byte)1 : (byte)0);
+
+        /// <summary>
+        /// Establece el número de decimales que usa el motor al mostrar resultados.
+        /// Valores válidos: 0–15. Por defecto: 8.
+        /// </summary>
+        public static void SetDecimalPrecision(byte precision)
+        {
+            try { set_decimal_precision_ffi(precision); }
             catch { }
         }
 
@@ -255,7 +270,7 @@ namespace CalculatorGui
             }
             catch
             {
-                return 0.0;
+                return double.NaN;
             }
             finally
             {

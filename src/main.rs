@@ -23,7 +23,7 @@ fn main() {
                     Ok(result) => {
                         println!("{}", result)
                     }, // If your function already prints the result, you don't need to do anything here.
-                    Err(e) => println!("Error: {:?}", e), // Print error messages
+                    Err(e) => println!("Error: {}", e), // Mensajes de error amigables
                 }
             },
             Err(error) => println!("Error reading input: {}", error),

@@ -1,9 +1,16 @@
 [package]
 name = "calculator"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
+rust-version = "1.65"
+description = "Motor de calculadora científica avanzada con interfaz FFI para .NET/C#"
+authors = ["Hugo S.M."]
+repository = "https://github.com/Hugo-S-M-28/Calculadora-Rust"
+license = "MIT"
+keywords = ["calculator", "math", "ffi", "scientific"]
+categories = ["science", "mathematics"]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+# Ver más en https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]
 name = "calculator_core"

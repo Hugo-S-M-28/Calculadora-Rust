@@ -38,6 +38,9 @@ pub fn set_variable(name: &str, val: Value) {
 pub fn clear_variables() {
     if let Ok(mut g) = get_variables().lock() {
         g.clear();
+        // Restaurar las constantes imaginarias por defecto
+        g.insert("i".to_string(), Value::Complex(Complex::new(0.0, 1.0)));
+        g.insert("j".to_string(), Value::Complex(Complex::new(0.0, 1.0)));
     }
 }
 
@@ -199,8 +202,7 @@ impl Value {
 impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let clean = |val: f64| {
-            let r = (val * 100000000.0).round() / 100000000.0;
-            if r == -0.0 { 0.0 } else { r }
+            crate::calculator::calculator::round_to_precision(val)
         };
         match self {
             Value::Scalar(n) => {
@@ -222,11 +224,25 @@ impl fmt::Display for Value {
                 if i == 0.0 {
                     write!(f, "{}", r)
                 } else if r == 0.0 {
-                    write!(f, "{}i", i)
+                    if i == 1.0 {
+                        write!(f, "i")
+                    } else if i == -1.0 {
+                        write!(f, "-i")
+                    } else {
+                        write!(f, "{}i", i)
+                    }
                 } else if i < 0.0 {
-                    write!(f, "{} - {}i", r, -i)
+                    if i == -1.0 {
+                        write!(f, "{}-i", r)
+                    } else {
+                        write!(f, "{}-{}i", r, -i)
+                    }
                 } else {
-                    write!(f, "{} + {}i", r, i)
+                    if i == 1.0 {
+                        write!(f, "{}+i", r)
+                    } else {
+                        write!(f, "{}+{}i", r, i)
+                    }
                 }
             }
             Value::Vector(v) => {
